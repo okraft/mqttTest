@@ -4,6 +4,7 @@ import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 /**
  * 发布消息-使用block阻塞客户端
@@ -64,34 +65,54 @@ public class Publish {
 	}
 	
 	public void sendMessage(String topic,String message){
+		sendMessage(topic, message.getBytes());
+	}
+	
+	public void sendMessage(String topic,byte[] payload){
 		try {
-			client.publish(topic, message.getBytes(), 1, true);
+			MqttMessage message = new MqttMessage(payload);
+			message.setQos(1);
+			message.setRetained(true);
+			MyMqttPublish pubMsg = new MyMqttPublish("testBridge1/2", message);
+			System.out.println("HeaderLength = " + pubMsg.getHeaderLength() );		//固定头部和可变头部的总长度
+			System.out.println("VariableHeaderLength = " + (pubMsg.getHeaderLength() -2) );		//可变头部长度方式1：固定头部和可变头部的总长度 -2
+			System.out.println("VariableHeaderLength = " + pubMsg.getVariableHeader().length);	//可变头部长度方式2
+			System.out.println("PayloadLength = " + pubMsg.getPayloadLength());		//有效载何长度
+			System.out.println("PayloadLength = " + payload.length);		//有效载何长度
+			client.publish(topic, message);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} 
 	}
 	
-	public void sendMessage(String topic,byte[] message){
-		try {
-			client.publish(topic, message, 1, true);
-		} catch (Exception e) {
-			e.printStackTrace();
-		} 
-	}
-	
-	public static void main(String[] args) throws InterruptedException, MqttException {
+	public static void main(String[] args) {
 		Publish publish = new Publish();
-		System.out.println("开发发送------------》");
+		publish.connect();
 		for (int i = 1; i <= 10; i++) {
-			Thread.sleep(2000);
 			String s = "第"+ (i) +"天，北京温度25度";
-			System.out.println(s);
+			/* 发送空消息
+			 if(i==10){
+				s = "第"+ (i) +"天";
+				publish.sendMessage("testBridge1/2", "");
+				break;
+			}*/
 			publish.sendMessage("testBridge1/2", s);
-			/* 发送消息Emq最大为65536,64k，可以进行调整
-			byte[] msg = new byte[65537];
-			publish.sendMessage("/test/beijing/temperature1", msg);*/
-			
 		}
+		
+		/*for (int i = 1; i <= 100; i++) {
+			try {
+				Thread.sleep(2000);
+				String s = "第"+ (i) +"天，北京温度25度";
+				System.out.println(s);
+				publish.sendMessage("testBridge1/2", s);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			 发送消息Emq最大为65536,64k，可以进行调整
+			byte[] msg = new byte[65537];
+			publish.sendMessage("/test/beijing/temperature1", msg);
+			
+		}*/
 	}
 	
 }
